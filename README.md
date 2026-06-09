@@ -1,2 +1,2 @@
 # GymLog
-Projekt zaliczeniowy - Etap 2.
+Projekt zaliczeniowy 
