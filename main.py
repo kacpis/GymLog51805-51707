@@ -1,15 +1,16 @@
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Query
 from pydantic import BaseModel, Field
 from typing import List, Optional
 
-app = FastAPI(title="GymLog API", version="3.0.0")
+app = FastAPI(title="GymLog API", version="4.0.0")
 
-# Prosta baza danych w pamięci RAM na potrzeby etapu 3
+# Baza danych w pamięci RAM
 USERS_DB = {
     "test@gymlog.pl": "haslo123"
 }
 WORKOUTS_DB = [
-    {"id": 1, "name": "Góra Ciała - Wtorek", "user_id": 51805, "status": "completed"}
+    {"id": 1, "name": "Góra Ciała - Wtorek", "user_id": 51805, "status": "completed"},
+    {"id": 2, "name": "Dół Ciała - Piątek", "user_id": 51805, "status": "planned"}
 ]
 
 # Modele danych
@@ -33,11 +34,14 @@ def register_user(user: UserRegister):
 def login_user(user: UserRegister):
     if user.email not in USERS_DB or USERS_DB[user.email] != user.password:
         raise HTTPException(status_code=401, detail="Niepoprawny login lub hasło.")
-    return {"access_token": "zalogowano-pomyślnie-token-etap3", "token_type": "bearer"}
+    return {"access_token": "token-etap-4-zalogowano", "token_type": "bearer"}
 
-# 2. Obszar Workouts
+# 2. Obszar Workouts (Zaawansowane filtrowanie i CRUD)
 @app.get("/workouts")
-def get_workouts():
+def get_workouts(status: Optional[str] = Query(None, description="Filtruj treningi po statusie (completed/planned)")):
+    if status:
+        filtered = [w for w in WORKOUTS_DB if w["status"] == status]
+        return filtered
     return WORKOUTS_DB
 
 @app.post("/workouts", status_code=status.HTTP_201_CREATED)
@@ -46,3 +50,12 @@ def create_workout(workout: WorkoutCreate):
     new_workout = {"id": new_id, "name": workout.name, "user_id": 51805, "status": workout.status}
     WORKOUTS_DB.append(new_workout)
     return {"message": "Trening utworzony pomyślnie", "workout": new_workout}
+
+@app.delete("/workouts/{workout_id}")
+def delete_workout(workout_id: int):
+    global WORKOUTS_DB
+    for workout in WORKOUTS_DB:
+        if workout["id"] == workout_id:
+            WORKOUTS_DB = [w for w in WORKOUTS_DB if w["id"] != workout_id]
+            return {"message": f"Trening o ID {workout_id} został pomyślnie usunięty."}
+    raise HTTPException(status_code=404, detail="Nie znaleziono treningu o podanym ID.")
